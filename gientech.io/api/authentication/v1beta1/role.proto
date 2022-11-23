@@ -1,0 +1,68 @@
+// Copyright Gientech Authors
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+syntax = "proto3";
+
+package gientech.authentication.v1beta1;
+
+option go_package = "gientech.io/api/authentication/v1beta1";
+
+// PlatformRole is a platform role CRD
+//
+// <!-- crd generation tags
+// +cue-gen:PlatformRole:groupName:authentication.gientech.io
+// +cue-gen:PlatformRole:version:v1beta1
+// +cue-gen:PlatformRole:storageVersion
+// +cue-gen:PlatformRole:scope:Cluster
+// +cue-gen:PlatformRole:resource:categories=platformrole
+// +cue-gen:PlatformRole:preserveUnknownFields:false
+// -->
+//
+// <!-- go code generation tags
+// +kubetype-gen
+// +kubetype-gen:groupVersion=authentication.gientech.io/v1beta1
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen=true
+// -->
+message PlatformRole {
+  RoleType roleType = 1;
+  string meshName = 2;
+  Namespaces namespaces = 3;
+}
+
+message Namespaces {
+  repeated string names = 1;
+  Operator operator = 2;
+}
+
+enum RoleType {
+  // allow to operate all resources.
+  ADMIN = 0;
+
+  // // only specified mesh can be operated
+  MESH_MANAGER = 1;
+
+  // only specified projects can be operated
+  PROJECT_MANAGER = 2;
+};
+
+// Operator selects a permission action
+enum Operator {
+  // allow to operate all method request.
+  READ_WRITE = 0;
+
+  // only allow to operate get method request.
+  READ_ONLY = 1;
+};

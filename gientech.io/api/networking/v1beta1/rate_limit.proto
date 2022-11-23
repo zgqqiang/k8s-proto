@@ -1,0 +1,189 @@
+// Copyright Gientech Authors
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/wrappers.proto";
+import "google/api/field_behavior.proto";
+
+import "validate/validate.proto";
+import "envoy/type/matcher/v3/regex.proto";
+import "envoy/annotations/deprecation.proto";
+
+package gientech.networking.v1beta1;
+
+option go_package = "gientech.io/api/networking/v1beta1";
+
+// RateLimit is a rate limit CRD
+//
+// <!-- crd generation tags
+// +cue-gen:RateLimit:groupName:networking.gientech.io
+// +cue-gen:RateLimit:version:v1beta1
+// +cue-gen:RateLimit:storageVersion
+// +cue-gen:RateLimit:scope:Namespaced
+// +cue-gen:RateLimit:resource:categories=ratelimit,shortNames=rl
+// +cue-gen:RateLimit:preserveUnknownFields:false
+// -->
+//
+// <!-- go code generation tags
+// +kubetype-gen
+// +kubetype-gen:MeshPolicy:tag=genclient:nonNamespaced
+// +kubetype-gen:groupVersion=networking.gientech.io/v1beta1
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen=true
+// -->
+message RateLimit {
+  WorkloadSelector workloadSelector = 1;
+  PatchContext context = 2;
+  string server = 3;
+  uint32 port = 4;
+  repeated Action actions = 5;
+  TokenBucket tokenBucket = 6;
+}
+
+// PatchContext selects a class of configurations based on the
+// traffic flow direction and workload type.
+enum PatchContext {
+  // All listeners/routes/clusters in both sidecars and gateways.
+  ANY = 0;
+
+  // Inbound listener/route/cluster in sidecar.
+  SIDECAR_INBOUND = 1;
+
+  // Outbound listener/route/cluster in sidecar.
+  SIDECAR_OUTBOUND = 2;
+
+  // Gateway listener/route/cluster.
+  GATEWAY = 3;
+};
+
+message Action {
+  repeated HeaderValueMatch headerValueMatchs = 1;
+  TokenBucket tokenBucket = 2;
+}
+
+message HeaderValueMatch {
+  // The value to use in the descriptor entry.
+  string descriptor_value = 1 [(validate.rules).string = {min_len: 1}];
+
+  // If set to true, the action will append a descriptor entry when the
+  // request matches the headers. If set to false, the action will append a
+  // descriptor entry when the request does not match the headers. The
+  // default value is true.
+  bool expect_match = 2;
+  // Specifies a set of headers that the rate limit action should match
+  // on. The action will check the request’s headers against all the
+  // specified headers in the config. A match will happen if all the
+  // headers in the config are present in the request with the same values
+  // (or based on presence if the value field is not in the config).
+  repeated HeaderMatcher headers = 3;
+}
+
+message HeaderMatcher {
+  string name = 1
+  [(validate.rules).string = {min_len: 1 well_known_regex: HTTP_HEADER_NAME strict: false}];
+
+  oneof header_match_specifier {
+    // If specified, header match will be performed based on the value of the header.
+    // This field is deprecated. Please use :ref:`string_match <envoy_v3_api_field_config.route.v3.HeaderMatcher.string_match>`.
+    string exact_match = 2
+    [deprecated = true, (envoy.annotations.deprecated_at_minor_version) = "3.0"];
+
+    // If specified as true, header match will be performed based on whether the header is in the
+    // request. If specified as false, header match will be performed based on whether the header is absent.
+    bool present_match = 3;
+
+    // If specified, header match will be performed based on the prefix of the header value.
+    // Note: empty prefix is not allowed, please use present_match instead.
+    // This field is deprecated. Please use :ref:`string_match <envoy_v3_api_field_config.route.v3.HeaderMatcher.string_match>`.
+    //
+    // Examples:
+    //
+    // * The prefix ``abcd`` matches the value ``abcdxyz``, but not for ``abcxyz``.
+    string prefix_match = 4 [
+      deprecated = true,
+      (validate.rules).string = {min_len: 1},
+      (envoy.annotations.deprecated_at_minor_version) = "3.0"
+    ];
+
+    // If specified, header match will be performed based on the suffix of the header value.
+    // Note: empty suffix is not allowed, please use present_match instead.
+    // This field is deprecated. Please use :ref:`string_match <envoy_v3_api_field_config.route.v3.HeaderMatcher.string_match>`.
+    //
+    // Examples:
+    //
+    // * The suffix ``abcd`` matches the value ``xyzabcd``, but not for ``xyzbcd``.
+    string suffix_match = 5 [
+      deprecated = true,
+      (validate.rules).string = {min_len: 1},
+      (envoy.annotations.deprecated_at_minor_version) = "3.0"
+    ];
+
+    // If specified, header match will be performed based on whether the header value contains
+    // the given value or not.
+    // Note: empty contains match is not allowed, please use present_match instead.
+    // This field is deprecated. Please use :ref:`string_match <envoy_v3_api_field_config.route.v3.HeaderMatcher.string_match>`.
+    //
+    // Examples:
+    //
+    // * The value ``abcd`` matches the value ``xyzabcdpqr``, but not for ``xyzbcdpqr``.
+    string contains_match = 6 [
+      deprecated = true,
+      (validate.rules).string = {min_len: 1},
+      (envoy.annotations.deprecated_at_minor_version) = "3.0"
+    ];
+
+    // If specified, this regex string is a regular expression rule which implies the entire request
+    // header value must match the regex. The rule will not match if only a subsequence of the
+    // request header value matches the regex.
+    // This field is deprecated. Please use :ref:`string_match <envoy_v3_api_field_config.route.v3.HeaderMatcher.string_match>`.
+    envoy.type.matcher.v3.RegexMatcher safe_regex_match = 11
+    [deprecated = true, (envoy.annotations.deprecated_at_minor_version) = "3.0"];
+  }
+}
+
+// Configures a token bucket, typically used for rate limiting.
+message TokenBucket {
+  // The maximum tokens that the bucket can hold. This is also the number of tokens that the bucket
+  // initially contains.
+  uint32 max_tokens = 1 [(validate.rules).uint32 = {gt: 0}];
+
+  // The number of tokens added to the bucket during each fill interval. If not specified, defaults
+  // to a single token.
+  google.protobuf.UInt32Value tokens_per_fill = 2 [(validate.rules).uint32 = {gt: 0}];
+
+  // The fill interval that tokens are added to the bucket. During each fill interval
+  // ``tokens_per_fill`` are added to the bucket. The bucket will never contain more than
+  // ``max_tokens`` tokens.
+  google.protobuf.Duration fill_interval = 3 [(validate.rules).duration = {
+    required: true
+    gt {}
+  }];
+}
+
+message WorkloadSelector {
+  // One or more labels that indicate a specific set of pods/VMs
+  // on which the configuration should be applied. The scope of
+  // label search is restricted to the configuration namespace in which the
+  // the resource is present.
+  map<string, string> labels = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // $hide_from_docs
+  // other forms of identification supplied by the proxy
+  // when connecting to Pilot, such as X509 fields, tenant IDs, JWT,
+  // etc. This has nothing to do with the request level authN etc.
+}
+

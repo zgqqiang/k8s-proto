@@ -1,0 +1,18 @@
+module: gientech.io/api
+
+openapi:
+  selfContained: true
+  fieldFilter: "min.*|max.*"
+
+directories:
+  networking/v1beta1:
+    - mode: perFile
+  authentication/v1beta1:
+    - mode: perFile
+  extend/v1beta1:
+    - mode: perFile
+  canary/v1beta1:
+    - mode: perFile
+
+crd:
+  dir: crds/
